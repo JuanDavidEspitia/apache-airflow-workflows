@@ -81,20 +81,15 @@ SPARK_JOB = {
 
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': False,
     'start_date': datetime(2021, 9, 23),
-    'email_on_failure': False,
-    'email_on_retry': False,
     'catchup_by_default': False,
+    'retry_delay': timedelta(minutes=2),
     'retries': 1
 }
 
 with models.DAG("example_gcp_dataproc",
                 default_args=default_args,
-                max_active_runs=1,
-                concurrency=4,
-                schedule_interval='*/15 * * * *',
-                dagrun_timeout=timedelta(minutes=1)) as dag:
+                schedule_interval='*/15 * * * *') as dag:
 
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
