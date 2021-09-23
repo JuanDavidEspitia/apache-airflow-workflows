@@ -23,7 +23,7 @@ operators to manage a cluster and submit jobs.
 """
 
 import os
-import datetime
+from datetime import datetime, timedelta
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -44,7 +44,7 @@ REGION = models.Variable.get('gcp_region')
 ZONE = models.Variable.get('gcp_zone')
 
 #PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "bdb-gcp-de-cds")
-#CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-cluster-bdb-gcp-ingest")
+#CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-cluster-composer-bdb-gcp-ingest")
 #REGION = os.environ.get("GCP_LOCATION", "us-east1")
 #ZONE = os.environ.get("GCP_REGION", "us-east1-d")
 
@@ -76,7 +76,26 @@ SPARK_JOB = {
     },
 }
 
-with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=datetime.timedelta(days=1)) as dag:
+# 'schedule_interval': '@daily',
+# 'schedule_interval': '@hourly',
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2021, 9, 23),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'catchup_by_default': False,
+    'retries': 1
+}
+
+with models.DAG("example_gcp_dataproc",
+                default_args=default_args,
+                max_active_runs=1,
+                concurrency=4,
+                schedule_interval='*/15 * * * *',
+                dagrun_timeout=timedelta(minutes=1)) as dag:
+
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
@@ -87,7 +106,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
     )
 
     spark_task = DataprocSubmitJobOperator(
-        task_id="spark_task", 
+        task_id="spark_task",
         job=SPARK_JOB, 
         location=REGION, 
         project_id=PROJECT_ID
