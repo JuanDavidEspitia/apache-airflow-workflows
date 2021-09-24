@@ -43,8 +43,13 @@ CLUSTER_NAME = models.Variable.get('gcp_cluster_name')
 REGION = models.Variable.get('gcp_region')
 ZONE = models.Variable.get('gcp_zone')
 
+INIT_ACTION = "gs://goog-dataproc-initialization-actions-us-east1/connectors/connectors.sh"
+#METADATA_1 = "bigquery-connector-version=1.2.0"
+METADATA_1 = "spark-bigquery-connector-version=0.21.0"
+
+
 #PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "bdb-gcp-de-cds")
-#CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-cluster-composer-bdb-gcp-ingest")
+#CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "bdb-gcp-cds-example-cluster-composer-ingest")
 #REGION = os.environ.get("GCP_LOCATION", "us-east1")
 #ZONE = os.environ.get("GCP_REGION", "us-east1-d")
 
@@ -80,16 +85,16 @@ SPARK_JOB = {
 # 'schedule_interval': '@hourly',
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'bdb_airflow',
     'start_date': datetime(2021, 9, 23),
     'catchup_by_default': False,
-    'retry_delay': timedelta(minutes=2),
+    'retry_delay': timedelta(minutes=10),
     'retries': 1
 }
 
-with models.DAG("example_gcp_dataproc",
+with models.DAG("bdb_example_dataproc_ingest",
                 default_args=default_args,
-                schedule_interval='*/15 * * * *') as dag:
+                schedule_interval=timedelta(days=1)) as dag:
 
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
@@ -98,6 +103,8 @@ with models.DAG("example_gcp_dataproc",
         cluster_config=CLUSTER_CONFIG,
         region=REGION,
         cluster_name=CLUSTER_NAME,
+        init_actions_uris=INIT_ACTION,
+        metadata=METADATA_1
     )
 
     spark_task = DataprocSubmitJobOperator(
