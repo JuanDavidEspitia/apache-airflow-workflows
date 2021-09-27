@@ -43,9 +43,11 @@ CLUSTER_NAME = models.Variable.get('gcp_cluster_name')
 REGION = models.Variable.get('gcp_region')
 ZONE = models.Variable.get('gcp_zone')
 
-INIT_ACTION = "gs://goog-dataproc-initialization-actions-us-east1/connectors/connectors.sh"
-#METADATA_1 = "bigquery-connector-version=1.2.0"
-METADATA_1 = "spark-bigquery-connector-version=0.21.0"
+#INIT_ACTION = ["gs://goog-dataproc-initialization-actions-us-east1/connectors/connectors.sh"]
+#METADATA = {'spark-bigquery-connector-version': '0.21.0', 'bigquery-connector-version ': '1.2.0'}
+#init_actions_uris = INIT_ACTION,
+#metadata = METADATA
+METADATA = [("spark-bigquery-connector-version", "0.21.0"), ("bigquery-connector-version", "1.2.0")]
 
 
 #PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "bdb-gcp-de-cds")
@@ -81,6 +83,17 @@ SPARK_JOB = {
     },
 }
 
+BIGQUERY_JOB = {
+    "reference": {"project_id": PROJECT_ID},
+    "placement": {"cluster_name": CLUSTER_NAME},
+    "spark_job": {
+        "jar_file_uris": ["gs://bdb-gcp-cds-dev/ProyectoCDS/Scripts/Scala/JobSparkDataproc-assembly-0.0.1.jar"],
+        "main_class": "net.bancodebogota.BigQueryConnector",
+        "args": ["gs://bdb-gcp-cds-dev/ProyectoCDS/Data/Customers/", "gs://bdb-gcp-cds-qa/Data/Bronze/", "|", "bdb-gcp-cds-storage-dataproc"],
+    },
+}
+
+
 # 'schedule_interval': '@daily',
 # 'schedule_interval': '@hourly',
 
@@ -103,8 +116,8 @@ with models.DAG("bdb_example_dataproc_ingest",
         cluster_config=CLUSTER_CONFIG,
         region=REGION,
         cluster_name=CLUSTER_NAME,
-        init_actions_uris=INIT_ACTION,
-        metadata=METADATA_1
+        init_actions_uris=["gs://goog-dataproc-initialization-actions-us-east1/connectors/connectors.sh"],
+        init_action_timeout="10m"
     )
 
     spark_task = DataprocSubmitJobOperator(
@@ -113,6 +126,7 @@ with models.DAG("bdb_example_dataproc_ingest",
         location=REGION, 
         project_id=PROJECT_ID
     )
+
 
     # [START how_to_cloud_dataproc_delete_cluster_operator]
     delete_cluster = DataprocDeleteClusterOperator(
@@ -124,4 +138,5 @@ with models.DAG("bdb_example_dataproc_ingest",
     # [END how_to_cloud_dataproc_delete_cluster_operator]
 
     create_cluster >> spark_task >> delete_cluster
+    #create_cluster >> bigquery_task >> delete_cluster
 
